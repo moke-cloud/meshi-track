@@ -3,6 +3,7 @@ import { FoodSearch } from './FoodSearch'
 import { GramsInput } from './GramsInput'
 import { BarcodeScanner } from './BarcodeScanner'
 import { PhotoLogger } from './PhotoLogger'
+import { TextEstimateLogger } from './TextEstimateLogger'
 import type { FoodRecord, MealItem, MealRecord, MealType } from '../../lib/types'
 import { putFood, putMeal } from '../../lib/db'
 import { inferMealType, MEAL_TYPE_LABELS, toLocalDateString } from '../../lib/datetime'
@@ -15,7 +16,7 @@ interface MealLoggerProps {
   onSaved: () => void
 }
 
-type Mode = 'menu' | 'photo' | 'barcode' | 'search' | 'grams' | 'barcode-lookup'
+type Mode = 'menu' | 'photo' | 'barcode' | 'search' | 'grams' | 'barcode-lookup' | 'text-estimate'
 
 export function MealLogger({ onClose, onSaved }: MealLoggerProps) {
   const [mealType, setMealType] = useState<MealType>(inferMealType())
@@ -173,16 +174,33 @@ export function MealLogger({ onClose, onSaved }: MealLoggerProps) {
               </button>
               <button
                 type="button"
+                onClick={() => setMode('text-estimate')}
+                className="w-full py-3 rounded-xl border-2 border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 font-semibold text-sm"
+              >
+                ✍ 料理名をAIに聞く
+              </button>
+              <button
+                type="button"
                 onClick={() => setMode('search')}
                 className="w-full py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-sm"
               >
-                🔍 食品名で検索
+                🔍 食品DBから検索
               </button>
             </div>
           )}
 
           {mode === 'photo' && (
             <PhotoLogger
+              onItemsDetected={(newItems) => {
+                setItems((prev) => [...prev, ...newItems])
+                setMode('menu')
+              }}
+              onCancel={() => setMode('menu')}
+            />
+          )}
+
+          {mode === 'text-estimate' && (
+            <TextEstimateLogger
               onItemsDetected={(newItems) => {
                 setItems((prev) => [...prev, ...newItems])
                 setMode('menu')

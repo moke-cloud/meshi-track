@@ -232,6 +232,84 @@ export async function recognizeFoodImage(
   return parsed.items
 }
 
+const TEXT_PROMPT = `次の料理・食事について、栄養素を日本食品標準成分表2020年版(八訂)ベースで推定してください。
+
+厳守事項:
+- ユーザーが「1人前」「1食分」を想定している前提で推定
+- 複数品目 (例「ハンバーグ定食」「ラーメンと餃子」) は配列で列挙
+- グラム数は可食部 (食べられる部分) の推定値
+- 不明瞭な場合は confidence: "low" とし notes に「要確認」を書く
+- 値が不明な場合は 0 を入れる (null不可)
+- 料理名は入力文を正規化した名前で返す`
+
+/**
+ * 料理名テキストから栄養素を推定 (写真なしのフォールバック)。
+ * 検索で MEXT/dishes_seed に見つからない料理 (外食メニュー、家庭独自レシピ等) に有効。
+ */
+export async function estimateFromText(
+  query: string,
+  model: GeminiModel = DEFAULT_MODEL,
+): Promise<VisionItem[]> {
+  const key = await getApiKey()
+  if (!key) throw new Error('Gemini APIキーが未設定です (設定画面で入力してください)')
+  const trimmed = query.trim()
+  if (!trimmed) throw new Error('料理名を入力してください')
+
+  const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `${TEXT_PROMPT}\n\n入力: ${trimmed}` }] }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
+      },
+    }),
+  })
+
+  const bodyText = await res.text()
+  if (!res.ok) {
+    throw new Error(`Gemini API エラー (${res.status}): ${bodyText.slice(0, 300)}`)
+  }
+  let body: GeminiResponse
+  try {
+    body = JSON.parse(bodyText) as GeminiResponse
+  } catch {
+    throw new Error('Gemini: 応答本体がJSONでありません')
+  }
+  if (body.promptFeedback?.blockReason) {
+    throw new Error(`Gemini がブロック: ${body.promptFeedback.blockReason}`)
+  }
+  const cand = body.candidates?.[0]
+  const text = cand?.content?.parts?.[0]?.text ?? ''
+  if (!text) throw new Error(`Gemini: 応答が空 (finishReason=${cand?.finishReason ?? 'unknown'})`)
+
+  let parsed: { items?: VisionItem[] } | null = null
+  try {
+    parsed = JSON.parse(text) as { items?: VisionItem[] }
+  } catch {
+    const m = text.match(/\{[\s\S]*\}/)
+    if (m) {
+      try {
+        parsed = JSON.parse(m[0]) as { items?: VisionItem[] }
+      } catch {
+        // フォールバック失敗
+      }
+    }
+  }
+  if (!parsed || !Array.isArray(parsed.items)) {
+    // eslint-disable-next-line no-console
+    console.warn('[Gemini text] 生応答:', text.slice(0, 500))
+    throw new Error('Gemini: items 配列を取得できませんでした')
+  }
+  if (parsed.items.length === 0) {
+    throw new Error('Gemini: 該当する料理が認識できませんでした')
+  }
+  return parsed.items
+}
+
 /** File/Blob を base64 文字列に変換 (data URL のヘッダ部は除外) */
 export async function fileToBase64(file: Blob): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
