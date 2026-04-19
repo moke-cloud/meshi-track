@@ -1,5 +1,9 @@
 # MeshiTrack
 
+[![Deploy to GitHub Pages](https://github.com/moke-cloud/meshi-track/actions/workflows/deploy.yml/badge.svg)](https://github.com/moke-cloud/meshi-track/actions/workflows/deploy.yml)
+
+🌐 **公開URL**: https://moke-cloud.github.io/meshi-track/
+
 文科省食品成分表2020年版（八訂）ベースの個人向け栄養素・カロリー管理PWA。
 
 ## 機能
