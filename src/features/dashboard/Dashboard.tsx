@@ -212,7 +212,7 @@ export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile, on
       <button
         type="button"
         onClick={onOpenLogger}
-        className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-lg text-2xl font-bold"
+        className="fixed safe-bottom-0 right-5 w-14 h-14 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-lg text-2xl font-bold"
         aria-label="食事を記録"
       >
         +

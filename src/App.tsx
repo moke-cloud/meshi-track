@@ -74,7 +74,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh max-w-screen-sm mx-auto px-4 py-6">
+    <div className="min-h-dvh max-w-screen-sm mx-auto px-4 safe-pt safe-pb">
       {view === 'onboarding' && (
         <>
           <header className="mb-4">

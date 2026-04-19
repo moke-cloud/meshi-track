@@ -12,3 +12,37 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/**
+ * PWAで standalone 起動した時、iOS のノッチ・ステータスバー・ホームインジケータと
+ * コンテンツが重ならないように safe-area-inset を反映する。
+ * index.html の viewport-fit=cover と組み合わせて有効になる。
+ */
+@utility safe-pt {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+}
+@utility safe-pb {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+@utility safe-top-0 {
+  top: env(safe-area-inset-top);
+}
+@utility safe-bottom-0 {
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+@utility safe-mb {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+
+/* 固定ヘッダー等が SafeArea を侵食しないようインセット分の背景を確保 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background: inherit;
+  z-index: 60;
+  pointer-events: none;
+}

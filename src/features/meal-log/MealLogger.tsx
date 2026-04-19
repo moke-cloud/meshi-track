@@ -94,8 +94,8 @@ export function MealLogger({ onClose, onSaved }: MealLoggerProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center">
-      <div className="w-full sm:max-w-lg bg-slate-50 dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
-        <div className="sticky top-0 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between z-10">
+      <div className="w-full sm:max-w-lg bg-slate-50 dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto safe-mb">
+        <div className="sticky top-0 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 flex items-center justify-between z-10">
           <div>
             <h2 className="font-semibold">食事を記録</h2>
             <div className="text-xs text-slate-500">
