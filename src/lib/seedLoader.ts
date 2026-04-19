@@ -39,34 +39,47 @@ const foodRecordSchema = z.object({
 const foodsArraySchema = z.array(foodRecordSchema)
 
 /**
- * 初回起動時に seed/full JSONを IndexedDB に取り込む。
- * - すでに食品が存在する (countFoods() > 0) 場合はスキップする。
- *   → 既存ユーザーのcustom食品や以前のシードが上書きされないことを保証。
+ * 初回起動時に食品DBを IndexedDB に取り込む。
+ * - 主DB (MEXT/seed) と惣菜DB (dishes_seed) を両方ロードする。
+ * - 既存データがある場合は個別に「未ロードなら追加」の差分ロードを行う。
+ *   → 既存ユーザーも「和食惣菜DB」を後から受け取れる。
  * - 取り込み失敗時は catch で握りつぶさず呼び出し元に投げる。
- *
- * 優先度:
- *   1. public/data/mext_foods.json (完全版、Python変換後) があればそれを使う
- *   2. なければ foods_seed.json (手動キュレーション40食品) を使う
  */
+async function fetchAndValidate(url: string): Promise<FoodRecord[] | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const raw = (await res.json()) as unknown
+    return foodsArraySchema.parse(raw) as FoodRecord[]
+  } catch {
+    return null
+  }
+}
+
 export async function ensureFoodsLoaded(baseUrl: string): Promise<{ loaded: number; skipped: boolean }> {
   const existing = await countFoods()
-  if (existing > 0) {
-    return { loaded: existing, skipped: true }
-  }
 
-  const candidates = [`${baseUrl}data/mext_foods.json`, `${baseUrl}data/foods_seed.json`]
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) continue
-      const raw = (await res.json()) as unknown
-      const parsed = foodsArraySchema.parse(raw) as FoodRecord[]
-      await bulkPutFoods(parsed)
-      return { loaded: parsed.length, skipped: false }
-    } catch {
-      // 次の候補にフォールバック
-      continue
+  // 主食品DB (MEXT 全量 or seed) - 既存データがあればスキップ
+  if (existing === 0) {
+    const primaryCandidates = [`${baseUrl}data/mext_foods.json`, `${baseUrl}data/foods_seed.json`]
+    for (const url of primaryCandidates) {
+      const data = await fetchAndValidate(url)
+      if (data) {
+        await bulkPutFoods(data)
+        break
+      }
     }
   }
-  throw new Error('食品データの読み込みに失敗しました')
+
+  // 惣菜DBは ID 重複でも上書き更新OK (最新の栄養値を反映)
+  const dishes = await fetchAndValidate(`${baseUrl}data/dishes_seed.json`)
+  if (dishes) {
+    await bulkPutFoods(dishes)
+  }
+
+  const finalCount = await countFoods()
+  if (finalCount === 0) {
+    throw new Error('食品データの読み込みに失敗しました')
+  }
+  return { loaded: finalCount, skipped: existing > 0 && !dishes }
 }

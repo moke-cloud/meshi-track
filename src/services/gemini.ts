@@ -68,31 +68,58 @@ export interface VisionItem {
   notes?: string
 }
 
-const VISION_PROMPT = `この写真に写っている食べ物を分析し、次のJSON形式で返してください。
+const VISION_PROMPT = `この写真に写っている食べ物を分析してください。
 
 厳守事項:
-- 必ず JSON のみを返す (マークダウンの\`\`\`や説明文は不要)
 - 複数の料理・食材が写っている場合は配列で全て列挙
 - グラム数は可食部(食べられる部分)の推定値
 - 栄養素は日本食品標準成分表2020年版(八訂)ベースで推定
 - 不明瞭な場合は confidence: "low" とし notes に「要確認」と記載
-- 料理名は一般的な日本語名で (例: "白米ごはん", "鶏のから揚げ", "味噌汁(豆腐とわかめ)")
+- 料理名は一般的な日本語名で (例: "白米ごはん", "鶏のから揚げ", "豚汁", "味噌汁(豆腐とわかめ)")
+- 値が不明な場合は 0 を入れる (null不可)`
 
-形式:
-{
-  "items": [
-    {
-      "foodName": "白米ごはん",
-      "estimatedGrams": 150,
-      "estimatedKcal": 234,
-      "estimatedProteinG": 3.8,
-      "estimatedFatG": 0.5,
-      "estimatedCarbG": 55.7,
-      "confidence": "high",
-      "notes": "茶碗1杯分"
-    }
-  ]
-}`
+/** Gemini の responseSchema で構造化JSON出力を強制する定義。 */
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          foodName: { type: 'string' },
+          estimatedGrams: { type: 'number' },
+          estimatedKcal: { type: 'number' },
+          estimatedProteinG: { type: 'number' },
+          estimatedFatG: { type: 'number' },
+          estimatedCarbG: { type: 'number' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+          notes: { type: 'string' },
+        },
+        required: [
+          'foodName',
+          'estimatedGrams',
+          'estimatedKcal',
+          'estimatedProteinG',
+          'estimatedFatG',
+          'estimatedCarbG',
+          'confidence',
+        ],
+      },
+    },
+  },
+  required: ['items'],
+} as const
+
+interface GeminiResponse {
+  candidates?: {
+    content?: { parts?: { text?: string }[] }
+    finishReason?: string
+    safetyRatings?: unknown
+  }[]
+  promptFeedback?: { blockReason?: string; safetyRatings?: unknown }
+  error?: { code?: number; message?: string; status?: string }
+}
 
 /**
  * 画像(Base64 or Blob)を Gemini Vision で料理認識。
@@ -119,33 +146,89 @@ export async function recognizeFoodImage(
       ],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 4096,
         responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
       },
     }),
   })
 
+  const bodyText = await res.text()
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Gemini API error ${res.status}: ${text.slice(0, 300)}`)
+    // エラーBody を可能な限り解析してメッセージ化
+    let detail = bodyText.slice(0, 400)
+    try {
+      const parsed = JSON.parse(bodyText) as GeminiResponse
+      if (parsed.error?.message) detail = `${parsed.error.status ?? ''} ${parsed.error.message}`
+    } catch {
+      // bodyText をそのまま使う
+    }
+    throw new Error(`Gemini API エラー (${res.status}): ${detail}`)
   }
 
-  const body = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
+  let body: GeminiResponse
+  try {
+    body = JSON.parse(bodyText) as GeminiResponse
+  } catch {
+    throw new Error('Gemini: 応答本体がJSONでありません')
   }
-  const text = body.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('Gemini: 応答が空です')
 
-  let parsed: { items?: VisionItem[] }
+  // プロンプトレベルでブロック (SafetyまたはBlocklist)
+  if (body.promptFeedback?.blockReason) {
+    throw new Error(`Gemini がリクエストをブロックしました: ${body.promptFeedback.blockReason}`)
+  }
+
+  const cand = body.candidates?.[0]
+  if (!cand) {
+    throw new Error('Gemini: candidates が空です (画像が認識できなかった可能性)')
+  }
+  const reason = cand.finishReason
+  const text = cand.content?.parts?.[0]?.text ?? ''
+
+  // finishReason の分岐処理
+  if (!text) {
+    if (reason === 'SAFETY') {
+      throw new Error('Gemini: 安全性フィルタで応答がブロックされました')
+    }
+    if (reason === 'MAX_TOKENS') {
+      throw new Error('Gemini: 応答が長すぎて切り詰められました (写真の品目を減らすか Pro モデルを試してください)')
+    }
+    if (reason === 'RECITATION') {
+      throw new Error('Gemini: 既存コンテンツの再生産と判定されブロックされました')
+    }
+    throw new Error(`Gemini: 応答テキストが空です (finishReason=${reason ?? 'unknown'})`)
+  }
+
+  // 構造化JSON出力を responseSchema で強制しているが、念のためパースフォールバック付き
+  let parsed: { items?: VisionItem[] } | null = null
   try {
     parsed = JSON.parse(text) as { items?: VisionItem[] }
   } catch {
-    // 時々前後にバッククォートやテキストが混入するためフォールバックで抽出
+    // responseSchema 指定しているのでここに来ることは稀だが、念のため波括弧抽出
     const m = text.match(/\{[\s\S]*\}/)
-    if (!m) throw new Error('Gemini: JSON パース失敗')
-    parsed = JSON.parse(m[0]) as { items?: VisionItem[] }
+    if (m) {
+      try {
+        parsed = JSON.parse(m[0]) as { items?: VisionItem[] }
+      } catch {
+        // フォールバックも失敗
+      }
+    }
   }
-  if (!Array.isArray(parsed.items)) throw new Error('Gemini: items 配列が見つかりません')
+
+  if (!parsed) {
+    // eslint-disable-next-line no-console
+    console.warn('[Gemini] JSONパース失敗の生応答:', text.slice(0, 500))
+    throw new Error(`Gemini: JSONパース失敗 (応答冒頭: ${text.slice(0, 80)}...)`)
+  }
+  if (!Array.isArray(parsed.items)) {
+    // eslint-disable-next-line no-console
+    console.warn('[Gemini] items配列が無い応答:', parsed)
+    throw new Error('Gemini: items 配列が見つかりません')
+  }
+  if (parsed.items.length === 0) {
+    throw new Error('Gemini: 写真から食品が検出されませんでした')
+  }
+
   return parsed.items
 }
 
