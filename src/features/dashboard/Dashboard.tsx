@@ -13,9 +13,10 @@ interface DashboardProps {
   refreshKey: number
   onOpenLogger: () => void
   onOpenProfile: () => void
+  onOpenSettings: () => void
 }
 
-export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile }: DashboardProps) {
+export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile, onOpenSettings }: DashboardProps) {
   const [meals, setMeals] = useState<MealRecord[]>([])
   const [loading, setLoading] = useState(true)
   const today = toLocalDateString()
@@ -60,14 +61,24 @@ export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile }: 
           <h1 className="text-2xl font-bold">🍚 MeshiTrack</h1>
           <div className="text-xs text-slate-500">{today}</div>
         </div>
-        <button
-          type="button"
-          onClick={onOpenProfile}
-          className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          aria-label="プロファイル設定"
-        >
-          ⚙
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 px-2 py-1"
+            aria-label="プロファイル"
+          >
+            👤
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 px-2 py-1"
+            aria-label="設定"
+          >
+            ⚙
+          </button>
+        </div>
       </header>
 
       <section className="rounded-2xl bg-white dark:bg-slate-800 shadow p-5">

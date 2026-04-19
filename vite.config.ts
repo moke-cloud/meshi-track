@@ -56,9 +56,11 @@ export default defineConfig({
       output: {
         manualChunks: {
           recharts: ['recharts'],
+          zxing: ['@zxing/browser', '@zxing/library'],
         },
       },
     },
+    chunkSizeWarningLimit: 600,
   },
   test: {
     environment: 'jsdom',

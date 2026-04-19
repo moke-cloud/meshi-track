@@ -5,8 +5,9 @@ import type { UserProfile } from './lib/types'
 import { ProfileForm } from './features/profile/ProfileForm'
 import { Dashboard } from './features/dashboard/Dashboard'
 import { MealLogger } from './features/meal-log/MealLogger'
+import { Settings } from './features/settings/Settings'
 
-type View = 'loading' | 'onboarding' | 'dashboard' | 'profile-edit'
+type View = 'loading' | 'onboarding' | 'dashboard' | 'profile-edit' | 'settings'
 
 export default function App() {
   const [view, setView] = useState<View>('loading')
@@ -108,8 +109,11 @@ export default function App() {
           refreshKey={refreshKey}
           onOpenLogger={() => setLoaderOpen(true)}
           onOpenProfile={() => setView('profile-edit')}
+          onOpenSettings={() => setView('settings')}
         />
       )}
+
+      {view === 'settings' && <Settings onClose={() => setView('dashboard')} />}
 
       {loaderOpen && (
         <MealLogger onClose={() => setLoaderOpen(false)} onSaved={handleMealSaved} />
