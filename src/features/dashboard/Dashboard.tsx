@@ -195,7 +195,7 @@ export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile, on
                   {m.items.map((i, idx) => (
                     <li key={idx} className="flex items-baseline justify-between">
                       <span>{i.foodName}</span>
-                      <span className="text-xs text-slate-500 tabular-nums">{i.grams}g</span>
+                      <span className="text-xs text-slate-500 tabular-nums">{i.grams}{i.servingUnit ?? 'g'}</span>
                     </li>
                   ))}
                 </ul>

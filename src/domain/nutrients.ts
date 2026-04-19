@@ -44,21 +44,31 @@ export function emptyNutrients(): NutrientsPer100g {
 }
 
 /**
- * 可食部100g基準の栄養素を、実摂取グラム数にスケーリングする。
- * 未定義フィールド (source で undefined) は結果でも undefined に留める。
+ * 「servingSize 個の単位あたり」の栄養素を実摂取量にスケーリング。
+ *
+ *   nutrients × amount / servingSize
+ *
+ * デフォルトの servingSize=100 により、従来の「per 100g × grams」呼び出しは
+ * そのまま動作する (後方互換)。サプリ等で per 1粒 の栄養素なら servingSize=1 を指定。
  */
-export function scaleNutrients(per100g: Readonly<NutrientsPer100g>, grams: number): NutrientsPer100g {
-  if (grams < 0 || !Number.isFinite(grams)) {
-    throw new Error(`scaleNutrients: grams must be non-negative finite number, got ${grams}`)
+export function scaleNutrients(
+  nutrientsPerServing: Readonly<NutrientsPer100g>,
+  amount: number,
+  servingSize = 100,
+): NutrientsPer100g {
+  if (amount < 0 || !Number.isFinite(amount)) {
+    throw new Error(`scaleNutrients: amount must be non-negative finite number, got ${amount}`)
   }
-  const factor = grams / 100
+  if (servingSize <= 0 || !Number.isFinite(servingSize)) {
+    throw new Error(`scaleNutrients: servingSize must be positive finite number, got ${servingSize}`)
+  }
+  const factor = amount / servingSize
   const result: Record<string, number> = {}
   for (const key of ALL_KEYS) {
-    const v = per100g[key]
+    const v = nutrientsPerServing[key]
     if (v === undefined) continue
     result[key] = v * factor
   }
-  // 必須キーは undefined 回避: source が 0 でも必ず number
   for (const key of REQUIRED_KEYS) {
     if (result[key] === undefined) result[key] = 0
   }

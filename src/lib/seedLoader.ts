@@ -34,6 +34,9 @@ const foodRecordSchema = z.object({
   category: z.string().optional(),
   source: z.enum(['mext', 'off', 'custom']),
   nutrients: nutrientsSchema,
+  servingSize: z.number().positive().optional(),
+  servingUnit: z.string().optional(),
+  defaultAmount: z.number().positive().optional(),
 })
 
 const foodsArraySchema = z.array(foodRecordSchema)
@@ -71,15 +74,24 @@ export async function ensureFoodsLoaded(baseUrl: string): Promise<{ loaded: numb
     }
   }
 
-  // 惣菜DBは ID 重複でも上書き更新OK (最新の栄養値を反映)
-  const dishes = await fetchAndValidate(`${baseUrl}data/dishes_seed.json`)
-  if (dishes) {
-    await bulkPutFoods(dishes)
+  // サブDB (惣菜・サプリ) は ID 重複でも上書き更新OK (最新の栄養値を反映)
+  // 既存ユーザーにも後から追加データが自動で届く差分ロード方式。
+  const subDbs = [
+    `${baseUrl}data/dishes_seed.json`,
+    `${baseUrl}data/supplements_seed.json`,
+  ]
+  let subLoaded = false
+  for (const url of subDbs) {
+    const data = await fetchAndValidate(url)
+    if (data) {
+      await bulkPutFoods(data)
+      subLoaded = true
+    }
   }
 
   const finalCount = await countFoods()
   if (finalCount === 0) {
     throw new Error('食品データの読み込みに失敗しました')
   }
-  return { loaded: finalCount, skipped: existing > 0 && !dishes }
+  return { loaded: finalCount, skipped: existing > 0 && !subLoaded }
 }

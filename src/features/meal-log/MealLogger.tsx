@@ -33,13 +33,16 @@ export function MealLogger({ onClose, onSaved }: MealLoggerProps) {
     setSelectedFood(null)
   }
 
-  function handleGramsConfirm(grams: number) {
+  function handleGramsConfirm(amount: number) {
     if (!selectedFood) return
+    const servingSize = selectedFood.servingSize ?? 100
+    const servingUnit = selectedFood.servingUnit ?? 'g'
     addItem({
       foodId: selectedFood.id,
       foodName: selectedFood.name,
-      grams,
-      nutrients: scaleNutrients(selectedFood.nutrients, grams),
+      grams: amount,
+      servingUnit,
+      nutrients: scaleNutrients(selectedFood.nutrients, amount, servingSize),
     })
   }
 
@@ -141,7 +144,7 @@ export function MealLogger({ onClose, onSaved }: MealLoggerProps) {
                 >
                   <span className="truncate flex-1">{it.foodName}</span>
                   <span className="text-xs text-slate-500 tabular-nums ml-2">
-                    {it.grams}g · {Math.round(it.nutrients.kcal)}kcal
+                    {it.grams}{it.servingUnit ?? 'g'} · {Math.round(it.nutrients.kcal)}kcal
                   </span>
                   <button
                     type="button"

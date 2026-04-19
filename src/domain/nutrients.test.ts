@@ -49,6 +49,19 @@ describe('scaleNutrients', () => {
   it('throws for negative grams', () => {
     expect(() => scaleNutrients(chickenBreast, -10)).toThrow()
   })
+
+  it('honors custom servingSize (e.g., per 1 tablet)', () => {
+    // 1粒あたり VitC 1000mg のサプリ想定 (servingSize=1 で per 1 粒)
+    const vitC: NutrientsPer100g = { kcal: 0, protein_g: 0, fat_g: 0, carb_g: 0, vitamin_c_mg: 1000 }
+    // 2 粒 摂取
+    const scaled = scaleNutrients(vitC, 2, 1)
+    expect(scaled.vitamin_c_mg).toBeCloseTo(2000, 1)
+  })
+
+  it('throws for non-positive servingSize', () => {
+    expect(() => scaleNutrients(chickenBreast, 100, 0)).toThrow()
+    expect(() => scaleNutrients(chickenBreast, 100, -5)).toThrow()
+  })
 })
 
 describe('sumNutrients', () => {

@@ -52,8 +52,16 @@ export interface NutrientsPer100g {
 }
 
 /**
- * 食品マスタレコード。per100g 栄養素を基準にグラム数で計算する。
- * source は食品データの出所 (政府公式 / 市販商品DB / ユーザー自作) を示す。
+ * 食品マスタレコード。
+ *
+ * 栄養素は「servingSize 個の servingUnit 当たり」で保持する。
+ * 既存データ (MEXT/OFF/seed) との後方互換のため、両フィールドとも optional。
+ * 未設定時のデフォルトは 100g (servingSize=100, servingUnit='g')。
+ *
+ * 例:
+ *   通常食品:  servingSize=100, servingUnit='g'     → per 100g
+ *   サプリ:    servingSize=1,   servingUnit='粒'    → per 1 粒
+ *   飲料:      servingSize=100, servingUnit='ml'    → per 100ml
  */
 export interface FoodRecord {
   /** 一意ID (MEXT食品番号 or "off:<barcode>" or "custom:<uuid>") */
@@ -62,12 +70,18 @@ export interface FoodRecord {
   name: string
   /** よみがな (検索用、カタカナ→ひらがな変換済み) */
   nameKana?: string
-  /** カテゴリ (穀類/いも類/野菜類/魚介類/肉類/乳類/...) */
+  /** カテゴリ (穀類/いも類/野菜類/魚介類/肉類/乳類/サプリ/...) */
   category?: string
   /** データ出所 */
   source: 'mext' | 'off' | 'custom'
-  /** 栄養素 (可食部100g当たり) */
+  /** 栄養素 (servingSize 個の servingUnit 当たり、未設定なら 100g) */
   nutrients: NutrientsPer100g
+  /** 何単位あたりの栄養素か (既定: 100) */
+  servingSize?: number
+  /** 単位 (既定: 'g'。'粒'、'ml'、'カプセル' 等任意の表示文字列) */
+  servingUnit?: string
+  /** デフォルトの記録量 (例: 1粒、150g) */
+  defaultAmount?: number
 }
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
@@ -109,13 +123,19 @@ export interface UserProfile {
 }
 
 /**
- * 食事内訳アイテム。保存時に per100g × grams / 100 で栄養素スナップショットを計算し、
+ * 食事内訳アイテム。保存時に nutrients × amount / servingSize で栄養素スナップショットを計算し、
  * 後から食品DBを更新しても過去記録は影響を受けないようにする。
+ *
+ * `grams` は名称上は「グラム」だが、サプリ等の場合は servingUnit の数量を保持する
+ * (例: 2 粒 なら grams=2, servingUnit='粒')。後方互換のためフィールド名は維持。
  */
 export interface MealItem {
   foodId: string
   foodName: string
+  /** 実摂取量 (servingUnit で数える数値。default 単位は 'g') */
   grams: number
+  /** 単位表示用 (未設定時は 'g') */
+  servingUnit?: string
   /** スナップショット栄養素 (この食事で実際に摂取した量) */
   nutrients: NutrientsPer100g
 }
