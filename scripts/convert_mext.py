@@ -25,42 +25,37 @@ from pathlib import Path
 from typing import Any
 
 
-# 成分表の列マッピング (2020年版八訂 本表の標準レイアウト)
-# MEXT のExcelは結合セル・複数行ヘッダのため、データ開始行とカラムインデックスは
-# ダウンロードしたファイルの構造を見て調整する必要がある。
-# ここでは代表的なレイアウトに合わせたデフォルトを提供。
+# 成分表の列マッピング (2020年版八訂 本表 "表全体" シート、2021-12-28 更新版)
+# inspect_mext.py で row 11 (成分識別子) を直接確認した列番号。
 COLUMN_MAP: dict[str, int] = {
-    "food_number": 0,
-    "food_group": 1,
-    "name": 3,
-    "kcal": 6,
-    "water_g": 9,
-    "protein_g": 12,
-    "fat_g": 17,
-    "carb_g": 23,
-    "fiber_g": 26,
-    "sodium_mg": 30,
-    "potassium_mg": 31,
-    "calcium_mg": 32,
-    "magnesium_mg": 33,
-    "phosphorus_mg": 34,
-    "iron_mg": 35,
-    "zinc_mg": 36,
-    "vitamin_a_ug": 44,
-    "vitamin_d_ug": 49,
-    "vitamin_e_mg": 50,
-    "vitamin_k_ug": 54,
-    "vitamin_b1_mg": 55,
-    "vitamin_b2_mg": 56,
-    "niacin_mg": 58,
-    "vitamin_b6_mg": 60,
-    "vitamin_b12_ug": 61,
-    "folate_ug": 62,
-    "vitamin_c_mg": 65,
-    "salt_g": 67,
+    "food_group": 0,      # 食品群番号
+    "food_number": 1,     # 食品番号 ("01001")
+    "name": 3,            # 食品名
+    "kcal": 6,            # ENERC_KCAL
+    "protein_g": 9,       # PROT-
+    "fat_g": 12,          # FAT-
+    "carb_g": 20,         # CHOCDF- (伝統的炭水化物、食物繊維含む)
+    "fiber_g": 18,        # FIB-
+    "potassium_mg": 24,   # K
+    "calcium_mg": 25,     # CA
+    "magnesium_mg": 26,   # MG
+    "iron_mg": 28,        # FE
+    "zinc_mg": 29,        # ZN
+    "vitamin_a_ug": 42,   # VITA_RAE (レチノール活性当量)
+    "vitamin_d_ug": 43,   # VITD
+    "vitamin_e_mg": 44,   # TOCPHA (α-トコフェロール)
+    "vitamin_k_ug": 48,   # VITK
+    "vitamin_b1_mg": 49,  # THIA
+    "vitamin_b2_mg": 50,  # RIBF
+    "niacin_mg": 52,      # NE (ナイアシン当量)
+    "vitamin_b6_mg": 53,  # VITB6A
+    "vitamin_b12_ug": 54, # VITB12
+    "folate_ug": 55,      # FOL
+    "vitamin_c_mg": 58,   # VITC
+    "salt_g": 60,         # 食塩相当量
 }
 
-DATA_START_ROW = 13  # 0-indexed。実ファイルに合わせて調整必須
+DATA_START_ROW = 12  # 0-indexed。1行目(0)〜11行目(10)がヘッダ、12行目からデータ。
 
 
 def parse_nutrient(value: Any) -> float | None:
@@ -119,6 +114,15 @@ def convert(xlsx_path: Path, out_dir: Path) -> None:
         print("ERROR: 最初のシートが読み取れませんでした。", file=sys.stderr)
         sys.exit(1)
 
+    # 食品群番号 → 日本語名
+    group_names = {
+        "01": "穀類", "02": "いも及びでん粉類", "03": "砂糖及び甘味類",
+        "04": "豆類", "05": "種実類", "06": "野菜類", "07": "果実類",
+        "08": "きのこ類", "09": "藻類", "10": "魚介類", "11": "肉類",
+        "12": "卵類", "13": "乳類", "14": "油脂類", "15": "菓子類",
+        "16": "し好飲料類", "17": "調味料及び香辛料類", "18": "調理済み流通食品類",
+    }
+
     foods: list[dict[str, Any]] = []
     for i, row in enumerate(ws.iter_rows(values_only=True)):
         if i < DATA_START_ROW:
@@ -127,9 +131,9 @@ def convert(xlsx_path: Path, out_dir: Path) -> None:
         name = row[COLUMN_MAP["name"]] if COLUMN_MAP["name"] < len(row) else None
         if food_number is None or name is None:
             continue
-        food_id = str(food_number).zfill(5)
+        food_id = str(food_number).strip().zfill(5)
         name_str = str(name).strip()
-        if not name_str:
+        if not name_str or not food_id.isdigit():
             continue
 
         nutrients: dict[str, float] = {}
@@ -150,8 +154,9 @@ def convert(xlsx_path: Path, out_dir: Path) -> None:
         if "kcal" not in nutrients:
             continue
 
-        group = row[COLUMN_MAP["food_group"]] if COLUMN_MAP["food_group"] < len(row) else None
-        category = str(group).strip() if group else None
+        group_raw = row[COLUMN_MAP["food_group"]] if COLUMN_MAP["food_group"] < len(row) else None
+        group_code = str(group_raw).strip().zfill(2) if group_raw else ""
+        category = group_names.get(group_code, f"群{group_code}" if group_code else None)
 
         foods.append({
             "id": food_id,

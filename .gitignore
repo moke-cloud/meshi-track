@@ -7,3 +7,6 @@ dev-dist
 .env.local
 coverage
 .vite
+
+# MEXT原本 (再取得可能、サイズ大) と検証用一時ファイル
+scripts/data/
