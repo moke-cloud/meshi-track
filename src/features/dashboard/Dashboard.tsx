@@ -7,6 +7,7 @@ import { calculatePfcRatios } from '../../domain/pfc'
 import { MEAL_TYPE_LABELS, toLocalDateString } from '../../lib/datetime'
 import { PfcPieChart } from './PfcPieChart'
 import { NutrientBars } from './NutrientBars'
+import { PfcAdvisor } from './PfcAdvisor'
 
 interface DashboardProps {
   profile: UserProfile
@@ -149,6 +150,8 @@ export function Dashboard({ profile, refreshKey, onOpenLogger, onOpenProfile, on
           </div>
         </div>
       </section>
+
+      <PfcAdvisor profile={profile} consumed={totalNutrients} targetKcal={target} />
 
       <section className="rounded-2xl bg-white dark:bg-slate-800 shadow p-5">
         <h2 className="text-sm font-semibold mb-3">主要栄養素</h2>
