@@ -11,10 +11,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'favicon-32.png'],
       manifest: {
         name: 'MeshiTrack - 栄養素・カロリー管理',
-        short_name: 'MeshiTrack',
+        short_name: '飯Track',
         description: '文科省食品成分表ベースの個人向け栄養素・カロリー管理PWA',
         theme_color: '#0f172a',
         background_color: '#0f172a',
@@ -23,8 +23,10 @@ export default defineConfig({
         scope: '/meshi-track/',
         lang: 'ja',
         icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
       workbox: {

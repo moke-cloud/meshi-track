@@ -1,4 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <text x="256" y="340" font-size="300" text-anchor="middle" font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">🍚</text>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="28%" r="95%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="60%" stop-color="#121a2e"/>
+      <stop offset="100%" stop-color="#070c18"/>
+    </radialGradient>
+    <linearGradient id="kanji" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fdf2d6"/>
+      <stop offset="100%" stop-color="#e5cd94"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c4a26a" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#d4b478" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#c4a26a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <g>
+    <text
+      x="256"
+      y="360"
+      font-family="'Yu Mincho','YuMincho','Hiragino Mincho ProN','HiraMinProN-W6','Noto Serif JP','Noto Serif CJK JP','MS Mincho','SimSun',serif"
+      font-weight="600"
+      font-size="340"
+      fill="url(#kanji)"
+      text-anchor="middle"
+      letter-spacing="-4">飯</text>
+  </g>
+  <rect x="168" y="430" width="176" height="4" fill="url(#accent)" rx="2"/>
 </svg>
